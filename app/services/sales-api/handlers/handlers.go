@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"expvar"
+	"github.com/Penthious/uservice/business/web/mid"
+	"github.com/Penthious/uservice/foundation/web"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -9,8 +11,6 @@ import (
 	"github.com/Penthious/uservice/app/services/sales-api/handlers/v1/testgrp"
 
 	"github.com/Penthious/uservice/app/services/sales-api/handlers/debug/checkgrp"
-
-	"github.com/dimfeld/httptreemux/v5"
 
 	"go.uber.org/zap"
 )
@@ -34,16 +34,28 @@ type APIMuxConfig struct {
 	Log      *zap.SugaredLogger
 }
 
-func APIMux(cfg APIMuxConfig) *httptreemux.ContextMux {
-	mux := httptreemux.NewContextMux()
+func APIMux(cfg APIMuxConfig) *web.App {
 
+	app := web.NewApp(
+		cfg.Shutdown,
+		mid.Logger(cfg.Log),
+		mid.Errors(cfg.Log),
+		mid.Metrics(),
+		mid.Panics(),
+	)
+
+	v1(app, cfg)
+
+	return app
+}
+
+func v1(app *web.App, cfg APIMuxConfig) {
+	const version = "v1"
 	tgh := testgrp.Handlers{
 		Log: cfg.Log,
 	}
 
-	mux.Handle(http.MethodGet, "/test", tgh.Test)
-
-	return mux
+	app.Handle(http.MethodGet, version, "/test", tgh.Test)
 }
 
 func DebugMux(build string, log *zap.SugaredLogger) http.Handler {

@@ -1,7 +1,10 @@
 package testgrp
 
 import (
-	"encoding/json"
+	"context"
+	"errors"
+	"github.com/Penthious/uservice/foundation/web"
+	"math/rand"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -11,7 +14,10 @@ type Handlers struct {
 	Log *zap.SugaredLogger
 }
 
-func (h Handlers) Test(w http.ResponseWriter, r *http.Request) {
+func (h Handlers) Test(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	if n := rand.Intn(100); n%2 == 0 {
+		return errors.New("untrusted error")
+	}
 	statusCode := http.StatusOK
 	status := struct {
 		Status string
@@ -19,7 +25,5 @@ func (h Handlers) Test(w http.ResponseWriter, r *http.Request) {
 		Status: "OK",
 	}
 
-	json.NewEncoder(w).Encode(status)
-
-	h.Log.Infow("liveness", "statusCode", statusCode, "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+	return web.Respond(ctx, w, status, statusCode)
 }

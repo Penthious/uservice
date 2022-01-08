@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"expvar"
+	"github.com/Penthious/uservice/business/auth"
 	"github.com/Penthious/uservice/business/web/mid"
 	"github.com/Penthious/uservice/foundation/web"
 	"net/http"
@@ -32,6 +33,7 @@ func DebugStandardLibraryMux() *http.ServeMux {
 type APIMuxConfig struct {
 	Shutdown chan os.Signal
 	Log      *zap.SugaredLogger
+	Auth     *auth.Auth
 }
 
 func APIMux(cfg APIMuxConfig) *web.App {
@@ -56,6 +58,7 @@ func v1(app *web.App, cfg APIMuxConfig) {
 	}
 
 	app.Handle(http.MethodGet, version, "/test", tgh.Test)
+	app.Handle(http.MethodGet, version, "/testauth", tgh.Test, mid.Authenticate(cfg.Auth), mid.Authorize("ADMIN"))
 }
 
 func DebugMux(build string, log *zap.SugaredLogger) http.Handler {

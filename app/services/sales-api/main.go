@@ -5,6 +5,8 @@ import (
 	"errors"
 	"expvar"
 	"fmt"
+	"github.com/Penthious/uservice/business/auth"
+	"github.com/Penthious/uservice/foundation/keystore"
 	"net/http"
 	"os"
 	"os/signal"
@@ -62,6 +64,10 @@ func run(log *zap.SugaredLogger) error {
 			APIHost         string        `conf:"default:0.0.0.0:3000"`
 			DebugHost       string        `conf:"default:0.0.0.0:4000"`
 		}
+		Auth struct {
+			KeysFolder string `conf:"default:zarf/keys/"`
+			ActiveKID  string `conf:"default:54bb2165-71e1-41a6-af3e-7da4a0e1e2c1"`
+		}
 	}{
 		Version: conf.Version{
 			SVN:  build,
@@ -90,6 +96,17 @@ func run(log *zap.SugaredLogger) error {
 	log.Infow("startup", "config", out)
 	expvar.NewString("build").Set(build)
 
+	log.Infow("startup", "status", "initializing authentication support")
+	ks, err := keystore.NewFS(os.DirFS(cfg.Auth.KeysFolder))
+	if err != nil {
+		return fmt.Errorf("reading keys: %w", err)
+	}
+
+	a, err := auth.New(cfg.Auth.ActiveKID, ks)
+	if err != nil {
+		return fmt.Errorf("constructing auth: %w", err)
+	}
+
 	log.Infow("startup", "status", "debug router started", "host", cfg.Web.DebugHost)
 
 	debugMux := handlers.DebugMux(build, log)
@@ -105,6 +122,7 @@ func run(log *zap.SugaredLogger) error {
 	apiMux := handlers.APIMux(handlers.APIMuxConfig{
 		Shutdown: shutdown,
 		Log:      log,
+		Auth:     a,
 	})
 	api := http.Server{
 		Addr:         cfg.Web.APIHost,
